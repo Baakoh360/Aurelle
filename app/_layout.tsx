@@ -1,0 +1,52 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import React, { useEffect } from "react";
+import { View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NotificationScheduler } from "@/components/NotificationScheduler";
+import { AppStoreProvider } from "@/hooks/useAppStore";
+import { ChatStoreProvider } from "@/hooks/useChatStore";
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
+
+const queryClient = new QueryClient();
+
+function RootLayoutNav() {
+  return (
+    <Stack screenOptions={{
+      headerBackTitle: "Back",
+      headerStyle: { backgroundColor: "#FFF5F9" },
+      headerTintColor: "#FF6B9D",
+      headerTitleStyle: { fontWeight: "600" },
+      contentStyle: { backgroundColor: "#FFF5F9" },
+    }}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="splash" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <View style={{ flex: 1 }}>
+          <AppStoreProvider>
+            <ChatStoreProvider>
+              <NotificationScheduler />
+              <RootLayoutNav />
+            </ChatStoreProvider>
+          </AppStoreProvider>
+        </View>
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+}
