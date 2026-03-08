@@ -8,7 +8,7 @@
 
 - **App name:** Aurelle  
 - **Tagline:** Your Cycle, Your Glow ✨  
-- **Slug / ID:** floaura (used in URLs and bundle IDs, e.g. `app.rork.floaura`)  
+ 
 - **Platform:** iOS and Android (Expo/React Native), with optional web.
 
 Aurelle helps you **track your menstrual cycle**, **log daily symptoms and mood**, **see predictions** (next period, ovulation, fertile window), and **learn** about cycle health, vaginal health, reproductive health, and mental health — all with a focus on **privacy** and **no account required** (data stays on your device).
