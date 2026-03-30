@@ -48,7 +48,7 @@ const DayLogForm: React.FC<DayLogFormProps> = ({ date, onClose, onDelete, isSett
   const commonSymptoms: { symptom: string; emoji: string }[] = [
     { symptom: 'Headache', emoji: '🤕' },
     { symptom: 'Cramps', emoji: '😣' },
-    { symptom: 'Bloating', emoji: '🫃' },
+    { symptom: 'Bloating', emoji: '🤰' },
     { symptom: 'Fatigue', emoji: '😴' },
     { symptom: 'Breast tenderness', emoji: '💜' },
     { symptom: 'Acne', emoji: '✨' },

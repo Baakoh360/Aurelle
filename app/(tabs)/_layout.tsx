@@ -114,9 +114,11 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: Colors.background,
           borderTopWidth: 0,
-          height: 90,
+          height: 100,
           paddingTop: 10,
-          paddingBottom: Platform.OS === "ios" ? 20 : 8,
+          // Give Android a bit more bottom padding so the tab bar
+          // sits visually higher above the navigation gesture area.
+          paddingBottom: Platform.OS === "ios" ? 20 : 26,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,

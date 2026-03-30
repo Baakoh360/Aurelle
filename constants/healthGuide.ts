@@ -2,7 +2,7 @@
  * Health Guide — simple data for categories and articles.
  */
 
-export type CategoryKey = 'cycle' | 'vaginal' | 'reproductive' | 'mental';
+export type CategoryKey = 'cycle' | 'vaginal' | 'reproductive' | 'mental' | 'nutrition';
 
 export interface ArticleSection {
   heading: string;
@@ -35,6 +35,13 @@ export const CATEGORIES: Category[] = [
   { key: 'vaginal', label: 'Vaginal Health', emoji: '🌸', tagline: 'Discharge, hygiene & comfort', gradient: ['#9D71E8', '#B794F6'] },
   { key: 'reproductive', label: 'Reproductive Health', emoji: '🤰', tagline: 'Fertility & pregnancy', gradient: ['#5BBFDD', '#7DD3F0'] },
   { key: 'mental', label: 'Mental Health', emoji: '🧠', tagline: 'Mood, anxiety & well-being', gradient: ['#F59E0B', '#FBBF24'] },
+  {
+    key: 'nutrition',
+    label: 'Food & Nutrition',
+    emoji: '🥗',
+    tagline: 'What to eat, what to skip & why it matters',
+    gradient: ['#22C55E', '#34D399'],
+  },
 ];
 
 export const ARTICLES: Article[] = [
@@ -496,6 +503,134 @@ export const ARTICLES: Article[] = [
       },
     ],
     whenToSeeDoctor: 'See a doctor or therapist if body image concerns affect your eating, exercise habits, or overall well-being.',
+  },
+  {
+    id: '15',
+    slug: 'foods-that-support-your-cycle',
+    category: 'nutrition',
+    title: 'Foods that support your cycle',
+    intro:
+      'What you eat does not replace medical care, but steady meals with whole foods, fiber, protein, and iron-rich foods can support energy, mood, and how you feel across your cycle.',
+    visualGuide: [
+      { emoji: '🥬', label: 'Plants & fiber', description: 'Vegetables, fruit, beans, whole grains — steady energy.' },
+      { emoji: '🫘', label: 'Iron & protein', description: 'Leafy greens, beans, lean meat, eggs — especially after blood loss.' },
+      { emoji: '💧', label: 'Hydration', description: 'Water and herbal teas. Helps bloating and headaches.' },
+    ],
+    sections: [
+      {
+        heading: 'Benefits of eating in a balanced way',
+        body:
+          'Regular meals with protein, complex carbs, and healthy fats help keep blood sugar steadier. That often means fewer mood crashes, less afternoon fatigue, and better focus. Fiber from plants supports digestion and can help with bloating over time. Iron-rich foods (spinach, lentils, fortified cereals, lean meat if you eat it) help replace iron lost with menstrual blood. Omega-3–rich foods (like oily fish, walnuts, flax) are linked in research to general health; some people also find they feel better overall when they include them.',
+      },
+      {
+        heading: 'What “eating well” usually looks like',
+        body:
+          'Half your plate vegetables and fruit when you can, a quarter whole grains, a quarter protein. Snacks that pair carbs with protein (e.g. apple with nut butter, yogurt with fruit) help avoid spikes and dips. There is no single magic food — consistency matters more than perfection.',
+      },
+      {
+        heading: 'Around your period',
+        body:
+          'Warm, easy-to-digest meals can feel comforting. Magnesium- and potassium-containing foods (leafy greens, bananas, nuts, seeds) are part of a normal varied diet. If you have heavy periods, discussing iron status with a doctor is sensible; food helps, but sometimes supplements are needed under medical guidance.',
+      },
+    ],
+    whenToSeeDoctor:
+      'See a doctor if you have very heavy periods, unusual fatigue, or symptoms that suggest anemia (e.g. dizziness, shortness of breath). They can check iron and advise safely.',
+  },
+  {
+    id: '16',
+    slug: 'foods-to-limit-or-avoid',
+    category: 'nutrition',
+    title: 'Foods to limit or skip (and gentler swaps)',
+    intro:
+      'Some foods and drinks can worsen bloating, cramps, mood swings, or sleep — especially in large amounts or right before your period. You do not need to ban anything; small changes often help.',
+    visualGuide: [
+      { emoji: '🧂', label: 'Very salty', description: 'Can increase water retention and bloating.' },
+      { emoji: '🍬', label: 'Lots of added sugar', description: 'Energy crashes and mood swings for some.' },
+      { emoji: '☕', label: 'Excess caffeine', description: 'Can worsen anxiety, sleep, breast tenderness.' },
+    ],
+    sections: [
+      {
+        heading: 'Highly processed snacks and sugary drinks',
+        body:
+          'Frequent spikes in blood sugar from sugary drinks and refined snacks can leave you tired and irritable when the crash hits. Ultra-processed foods are often high in salt and low in fiber — fine occasionally, but not ideal as the main part of your diet.',
+      },
+      {
+        heading: 'Alcohol',
+        body:
+          'Alcohol can disrupt sleep, dehydrate you, and worsen mood for some people. It can also interact with medications. If you drink, moderation and plenty of water matter; skip it if you feel worse or if your doctor advises.',
+      },
+      {
+        heading: 'What to choose instead (examples)',
+        body:
+          'Swap sugary soda for sparkling water with fruit. Choose baked or steamed options over very salty fried fast food when you are already bloated. If caffeine makes you jittery, try half-caf, smaller amounts, or stopping earlier in the day.',
+      },
+    ],
+    whenToSeeDoctor:
+      'If you feel unable to control eating, binge often, or restrict food in ways that harm your health, see a doctor or eating-disorder specialist.',
+  },
+  {
+    id: '17',
+    slug: 'when-your-diet-affects-how-you-feel',
+    category: 'nutrition',
+    title: 'When eating the “wrong” things often — what can happen',
+    intro:
+      'Skipping meals, relying on sugar and salt, or drinking lots of caffeine can affect energy, mood, sleep, and bloating. Here is a plain-language look at implications — not blame, just information.',
+    visualGuide: [
+      { emoji: '📉', label: 'Energy crashes', description: 'Big sugar hits → crash later. Hard to focus.' },
+      { emoji: '💧', label: 'Bloating & puffiness', description: 'Very salty meals + dehydration = worse bloating.' },
+      { emoji: '😴', label: 'Poor sleep', description: 'Late caffeine or alcohol → sleep suffers → mood dips.' },
+    ],
+    sections: [
+      {
+        heading: 'Implications of too much added sugar',
+        body:
+          'Rapid rises and falls in blood sugar can feel like irritability, shakiness, or craving more sugar. Over time, a pattern of mostly sugary foods often means you miss fiber, vitamins, and minerals that support steady energy and gut health. That does not mean one dessert is “bad” — it is about overall pattern.',
+      },
+      {
+        heading: 'Implications of too much salt',
+        body:
+          'Very salty meals can increase water retention, which some people notice as puffiness, bloating, or tight rings before their period. Drinking water does not “flush out” salt instantly, but staying hydrated and choosing lower-salt meals when you are already uncomfortable can help.',
+      },
+      {
+        heading: 'Skipping meals or under-eating',
+        body:
+          'Going long without food can cause headaches, dizziness, irritability, and stronger cravings later. Your body needs fuel — especially if you are active or on your period. Regular meals support hormones and mood more than extreme restriction.',
+      },
+    ],
+    whenToSeeDoctor:
+      'See a doctor if you have persistent bloating, weight change you cannot explain, or symptoms of anemia or thyroid problems.',
+  },
+  {
+    id: '18',
+    slug: 'benefits-of-eating-the-right-foods',
+    category: 'nutrition',
+    title: 'Benefits of eating the right foods for you',
+    intro:
+      '“Right” means balanced, enough, and enjoyable — not perfect. When your meals regularly include plants, protein, fiber, and water, your body and mind often get clear benefits.',
+    visualGuide: [
+      { emoji: '⚡', label: 'Steadier energy', description: 'Fewer crashes and better focus through the day.' },
+      { emoji: '😊', label: 'Mood support', description: 'Stable blood sugar and nutrients help brain chemistry.' },
+      { emoji: '🌿', label: 'Digestion', description: 'Fiber and fluids support regular, comfortable digestion.' },
+    ],
+    sections: [
+      {
+        heading: 'Physical benefits',
+        body:
+          'Adequate protein helps repair tissue and keeps you full. Fiber supports gut bacteria and bowel regularity. Iron and vitamin C together (e.g. beans with peppers, or leafy greens with citrus) help iron absorption. Hydration supports skin, headaches, and cramps for many people.',
+      },
+      {
+        heading: 'Mental and emotional benefits',
+        body:
+          'When you are not starving or on a sugar rollercoaster, many people find it easier to regulate mood and stress. Regular meals signal safety to your nervous system. That does not replace therapy or treatment for depression or anxiety — but nutrition is one pillar of self-care.',
+      },
+      {
+        heading: 'Cycle-specific benefits',
+        body:
+          'Some people notice less bloating when they reduce very salty processed foods before their period. Others feel better with magnesium-rich foods in a normal diet (nuts, seeds, whole grains, greens). Everyone is different — use your own body as feedback, not strict rules.',
+      },
+    ],
+    whenToSeeDoctor:
+      'If you want personalized nutrition advice (e.g. PCOS, diabetes, pregnancy), ask your doctor or a registered dietitian.',
   },
 ];
 

@@ -20,36 +20,36 @@ function isValidCycleData(c: CycleData | null): c is CycleData {
   return !Number.isNaN(d.getTime()) && c.periodLength > 0 && c.cycleLength > 0;
 }
 
-/**
- * Runs inside AppStoreProvider. On app open: rescheduleIfNeeded (only if > 7 days).
- * When cycleData or notification settings change after that: full schedule.
- * No permission prompts — assumes OS already granted.
- */
 export function NotificationScheduler(): null {
   const { cycleData, user } = useAppStore();
-  const {
-    rescheduleIfNeeded,
-    scheduleAllNotifications,
-    settings,
-    settingsLoaded,
-  } = useNotifications();
+
+  // FIX: settings removed from destructure — the hook owns settings internally,
+  // so we no longer need to pass it back in. This removes the need for
+  // eslint-disable-next-line and makes the dependency array fully honest.
+  const { rescheduleIfNeeded, scheduleAllNotifications, settingsLoaded } =
+    useNotifications();
+
   const initialLoadDone = useRef(false);
 
-  useEffect(() => {
-    if (!settingsLoaded || user?.isPregnant || !isValidCycleData(cycleData))
-      return;
+  const cycleKey = isValidCycleData(cycleData)
+    ? `${cycleData.periodStartDate}|${cycleData.periodLength}|${cycleData.cycleLength}`
+    : null;
 
-    const payload = toNotificationCycleData(cycleData!);
+  useEffect(() => {
+    if (!settingsLoaded || user?.isPregnant || !isValidCycleData(cycleData) || !cycleKey) return;
+
+    const payload = toNotificationCycleData(cycleData);
 
     if (!initialLoadDone.current) {
-      rescheduleIfNeeded(payload, settings);
+      // First mount: only reschedule if >7 days since last schedule
+      rescheduleIfNeeded(payload);
       initialLoadDone.current = true;
     } else {
-      scheduleAllNotifications(payload, settings);
+      // cycleData changed: do a full reschedule
+      scheduleAllNotifications(payload);
     }
-    // Only re-run when data/settings actually change, not when hook function refs change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycleData, settings, settingsLoaded, user?.isPregnant]);
+  // All deps are stable primitives or stable function refs — no eslint-disable needed
+  }, [cycleKey, settingsLoaded, user?.isPregnant, rescheduleIfNeeded, scheduleAllNotifications]);
 
   return null;
 }

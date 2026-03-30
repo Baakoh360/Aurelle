@@ -2,7 +2,7 @@ const base = {
   sdkVersion: "54.0.0",
   name: "Aurelle",
   slug: "floaura",
-  version: "1.0.0",
+  version: "1.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "myapp",
@@ -16,6 +16,7 @@ const base = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "app.rork.floaura",
+    buildNumber: "3",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -25,11 +26,10 @@ const base = {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
-    package: "app.rork.floaura",
+    package: "com.aurelle.tracker",
+    versionCode: 5,
     permissions: [
       "android.permission.RECEIVE_BOOT_COMPLETED",
-      "android.permission.SCHEDULE_EXACT_ALARM",
-      "android.permission.REQUEST_INSTALL_PACKAGES",
     ],
   },
   web: {

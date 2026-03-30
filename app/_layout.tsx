@@ -5,11 +5,11 @@ import React, { useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
 import { NotificationScheduler } from "@/components/NotificationScheduler";
 import { AppStoreProvider } from "@/hooks/useAppStore";
 import { ChatStoreProvider } from "@/hooks/useChatStore";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
@@ -34,7 +34,23 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    // FIX: wrapped in catch to avoid unhandled promise rejection
+    SplashScreen.hideAsync().catch((e) =>
+      console.warn("[SplashScreen] hideAsync failed:", e)
+    );
+  }, []);
+
+  useEffect(() => {
+    // FIX: added shouldShowAlert for Expo SDK <50 compatibility
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
   }, []);
 
   return (
