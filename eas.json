@@ -25,7 +25,8 @@
       "ios": {
         "simulator": false
       },
-      "channel": "production"
+      "channel": "production",
+      "node": "20.19.4"
     }
   },
   "submit": {
