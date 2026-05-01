@@ -1,8 +1,8 @@
 const base = {
   sdkVersion: "54.0.0",
-  name: "FloAura",
+  name: "Aurelle",
   slug: "floaura",
-  version: "1.0.0",
+  version: "1.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "myapp",
@@ -16,17 +16,20 @@ const base = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "app.rork.floaura",
+    buildNumber: "3",
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#ffffff",
     },
-    package: "app.rork.floaura",
+    package: "com.aurelle.tracker",
+    versionCode: 7,
     permissions: [
       "android.permission.RECEIVE_BOOT_COMPLETED",
-      "android.permission.SCHEDULE_EXACT_ALARM",
-      "android.permission.REQUEST_INSTALL_PACKAGES",
     ],
   },
   web: {
@@ -39,9 +42,10 @@ const base = {
 
 const plugins = [
   ["expo-router", { origin: "https://rork.com/" }],
+  "expo-web-browser", // ← ADD THIS
 ];
 
-// Only add expo-notifications plugin when the package is installed (e.g. in project node_modules)
+// Only add expo-notifications plugin when the package is installed
 try {
   require.resolve("expo-notifications", { paths: [__dirname] });
   const path = require("path");
@@ -61,7 +65,7 @@ try {
   }
   plugins.push(["expo-notifications", notificationConfig]);
 } catch {
-  // expo-notifications not installed or not resolvable from project; skip plugin
+  // expo-notifications not installed; skip plugin
 }
 
 module.exports = {
@@ -72,6 +76,12 @@ module.exports = {
       eas: {
         projectId: "93a00c20-7ebc-4857-b0fd-c64611745882",
       },
+    },
+    updates: {
+      url: "https://u.expo.dev/93a00c20-7ebc-4857-b0fd-c64611745882",
+    },
+    runtimeVersion: {
+      policy: "appVersion",
     },
   },
 };
