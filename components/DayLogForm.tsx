@@ -7,7 +7,14 @@ import { formatReadable } from '@/utils/dateUtils';
 import Colors from '@/constants/colors';
 import { spacing, radius } from '@/constants/spacing';
 import GradientButton from './GradientButton';
-import { Smile, Frown, Meh, AlertCircle } from 'lucide-react-native';
+
+const MOOD_OPTIONS: { value: DayLog['mood']; emoji: string; label: string }[] = [
+  { value: 'happy', emoji: '😊', label: 'Happy' },
+  { value: 'neutral', emoji: '😐', label: 'Neutral' },
+  { value: 'sad', emoji: '😢', label: 'Sad' },
+  { value: 'anxious', emoji: '😰', label: 'Anxious' },
+  { value: 'angry', emoji: '😤', label: 'Angry' },
+];
 
 interface DayLogFormProps {
   date: string;
@@ -37,18 +44,18 @@ const DayLogForm: React.FC<DayLogFormProps> = ({ date, onClose, onDelete, isSett
     notes: '',
   });
   
-  // Common symptoms
-  const commonSymptoms = [
-    'Headache',
-    'Cramps',
-    'Bloating',
-    'Fatigue',
-    'Breast tenderness',
-    'Acne',
-    'Nausea',
-    'Mood swings',
-    'Cravings',
-    'Insomnia',
+  // Common symptoms with emojis
+  const commonSymptoms: { symptom: string; emoji: string }[] = [
+    { symptom: 'Headache', emoji: '🤕' },
+    { symptom: 'Cramps', emoji: '😣' },
+    { symptom: 'Bloating', emoji: '🤰' },
+    { symptom: 'Fatigue', emoji: '😴' },
+    { symptom: 'Breast tenderness', emoji: '💜' },
+    { symptom: 'Acne', emoji: '✨' },
+    { symptom: 'Nausea', emoji: '🤢' },
+    { symptom: 'Mood swings', emoji: '🎭' },
+    { symptom: 'Cravings', emoji: '🍫' },
+    { symptom: 'Insomnia', emoji: '🌙' },
   ];
   
   useEffect(() => {
@@ -220,45 +227,26 @@ const DayLogForm: React.FC<DayLogFormProps> = ({ date, onClose, onDelete, isSett
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Mood</Text>
         <View style={styles.moodButtons}>
-          <TouchableOpacity
-            style={[styles.moodButton, log.mood === 'happy' && styles.moodButtonActive]}
-            onPress={() => setLog({ ...log, mood: 'happy' })}
-            activeOpacity={0.85}
-          >
-            <Smile size={26} color={Colors.primary} />
-            <Text style={[styles.moodButtonText, log.mood === 'happy' && styles.moodButtonTextActive]}>Happy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.moodButton, log.mood === 'neutral' && styles.moodButtonActive]}
-            onPress={() => setLog({ ...log, mood: 'neutral' })}
-            activeOpacity={0.85}
-          >
-            <Meh size={26} color={Colors.primary} />
-            <Text style={[styles.moodButtonText, log.mood === 'neutral' && styles.moodButtonTextActive]}>Neutral</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.moodButton, log.mood === 'sad' && styles.moodButtonActive]}
-            onPress={() => setLog({ ...log, mood: 'sad' })}
-            activeOpacity={0.85}
-          >
-            <Frown size={26} color={Colors.primary} />
-            <Text style={[styles.moodButtonText, log.mood === 'sad' && styles.moodButtonTextActive]}>Sad</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.moodButton, log.mood === 'anxious' && styles.moodButtonActive]}
-            onPress={() => setLog({ ...log, mood: 'anxious' })}
-            activeOpacity={0.85}
-          >
-            <AlertCircle size={26} color={Colors.primary} />
-            <Text style={[styles.moodButtonText, log.mood === 'anxious' && styles.moodButtonTextActive]}>Anxious</Text>
-          </TouchableOpacity>
+          {MOOD_OPTIONS.map(({ value, emoji, label }) => (
+            <TouchableOpacity
+              key={value}
+              style={[styles.moodButton, log.mood === value && styles.moodButtonActive]}
+              onPress={() => setLog({ ...log, mood: value })}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.moodEmoji}>{emoji}</Text>
+              <Text style={[styles.moodButtonText, log.mood === value && styles.moodButtonTextActive]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Symptoms</Text>
         <View style={styles.symptomsContainer}>
-          {commonSymptoms.map(symptom => (
+          {commonSymptoms.map(({ symptom, emoji }) => (
             <TouchableOpacity
               key={symptom}
               style={[
@@ -274,7 +262,7 @@ const DayLogForm: React.FC<DayLogFormProps> = ({ date, onClose, onDelete, isSett
                   log.symptoms?.includes(symptom) && styles.symptomButtonTextActive
                 ]}
               >
-                {symptom}
+                {emoji} {symptom}
               </Text>
             </TouchableOpacity>
           ))}
@@ -431,12 +419,17 @@ const styles = StyleSheet.create({
   },
   moodButton: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: spacing.base,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.lg,
     borderWidth: 2,
     borderColor: 'rgba(255,107,157,0.35)',
-    minWidth: '22%',
+    minWidth: '18%',
+  },
+  moodEmoji: {
+    fontSize: 34,
+    marginBottom: spacing.xs,
   },
   moodButtonActive: {
     backgroundColor: 'rgba(255,107,157,0.12)',
@@ -444,8 +437,7 @@ const styles = StyleSheet.create({
   },
   moodButtonText: {
     color: Colors.primary,
-    marginTop: spacing.xs,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.2,
   },

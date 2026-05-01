@@ -8,9 +8,51 @@ interface ChatMessageProps {
   message: Message;
 }
 
+/** Strip markdown # / ## so hashes don't show in the message. */
+function stripHeadingHashes(text: string): string {
+  return text
+    .replace(/^#{1,6}\s*/gm, '')  // line-start # to ###### and optional space
+    .replace(/##/g, '');
+}
+
+/** Renders text with **bold** or *bold* markdown as actual bold. */
+function FormattedMessage({ content, baseStyle }: { content: string; baseStyle: object }) {
+  const cleaned = stripHeadingHashes(content);
+  const segments: { type: 'normal' | 'bold'; text: string }[] = [];
+  const re = /\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+  let match;
+  let lastIndex = 0;
+  while ((match = re.exec(cleaned)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'normal', text: cleaned.slice(lastIndex, match.index) });
+    }
+    const boldText = match[1] ?? match[2] ?? '';
+    segments.push({ type: 'bold', text: boldText });
+    lastIndex = re.lastIndex;
+  }
+  if (lastIndex < cleaned.length) {
+    segments.push({ type: 'normal', text: cleaned.slice(lastIndex) });
+  }
+  if (segments.length === 0) {
+    return <Text style={baseStyle}>{cleaned}</Text>;
+  }
+  return (
+    <Text style={baseStyle}>
+      {segments.map((seg, i) =>
+        seg.type === 'bold' ? (
+          <Text key={i} style={[baseStyle, styles.bold]}>{seg.text}</Text>
+        ) : (
+          <Text key={i}>{seg.text}</Text>
+        )
+      )}
+    </Text>
+  );
+}
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
-  
+  const textStyle = [styles.text, isUser ? styles.userText : styles.assistantText];
+
   return (
     <View style={[
       styles.container,
@@ -20,12 +62,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
         styles.bubble,
         isUser ? styles.userBubble : styles.assistantBubble
       ]}>
-        <Text style={[
-          styles.text,
-          isUser ? styles.userText : styles.assistantText
-        ]}>
-          {message.content}
-        </Text>
+        <FormattedMessage content={message.content} baseStyle={StyleSheet.flatten(textStyle)} />
       </View>
       <Text style={styles.timestamp}>
         {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -68,6 +105,9 @@ const styles = StyleSheet.create({
   },
   assistantText: {
     color: Colors.text,
+  },
+  bold: {
+    fontWeight: '700',
   },
   timestamp: {
     fontSize: 10,

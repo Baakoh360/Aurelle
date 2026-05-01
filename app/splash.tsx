@@ -1,58 +1,62 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Animated, Easing, Image } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Animated,
+  Easing,
+  Image,
+  Dimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '@/hooks/useAppStore';
 
-const SPLASH_LOGO = require('../assets/images/splash-icon.png');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function SplashScreen() {
   const router = useRouter();
   const { user } = useAppStore();
   const userRef = useRef(user);
   userRef.current = user;
-  const logoScale = useRef(new Animated.Value(0)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const backgroundOpacity = useRef(new Animated.Value(0)).current;
+
+  const imageOpacity = useRef(new Animated.Value(0)).current;
+  const nameScale = useRef(new Animated.Value(0.6)).current;
+  const nameOpacity = useRef(new Animated.Value(0)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(backgroundOpacity, {
+    Animated.sequence([
+      Animated.timing(imageOpacity, {
         toValue: 1,
-        duration: 800,
+        duration: 700,
         useNativeDriver: true,
       }),
-      Animated.sequence([
-        Animated.delay(300),
+      Animated.parallel([
         Animated.sequence([
-          Animated.timing(logoScale, {
-            toValue: 1.2,
-            duration: 600,
-            easing: Easing.out(Easing.back(1.7)),
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoScale, {
+          Animated.parallel([
+            Animated.timing(nameScale, {
+              toValue: 1.05,
+              duration: 500,
+              easing: Easing.out(Easing.back(1.4)),
+              useNativeDriver: true,
+            }),
+            Animated.timing(nameOpacity, {
+              toValue: 1,
+              duration: 450,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.timing(nameScale, {
             toValue: 1,
-            duration: 200,
+            duration: 150,
             useNativeDriver: true,
           }),
         ]),
-      ]),
-      Animated.sequence([
-        Animated.delay(300),
-        Animated.timing(logoOpacity, {
+        Animated.delay(200),
+        Animated.timing(taglineOpacity, {
           toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.sequence([
-        Animated.delay(800),
-        Animated.timing(textOpacity, {
-          toValue: 1,
-          duration: 600,
+          duration: 500,
           useNativeDriver: true,
         }),
       ]),
@@ -66,49 +70,45 @@ export default function SplashScreen() {
       }
     }, 3000);
     return () => clearTimeout(timer);
-  }, [router, backgroundOpacity, logoScale, logoOpacity, textOpacity]);
+  }, [router, imageOpacity, nameScale, nameOpacity, taglineOpacity]);
 
   const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.gradientContainer, { opacity: backgroundOpacity }]}>
-        <LinearGradient
-          colors={['#FF6B9D', '#9D71E8', '#5BBFDD']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
-          <View style={styles.content}>
-            <Animated.View
-              style={[
-                styles.logoContainer,
-                {
-                  transform: [{ scale: logoScale }],
-                  opacity: logoOpacity,
-                },
-              ]}
-            >
-              <View style={styles.logoCircle}>
-                <Image source={SPLASH_LOGO} style={styles.logoImage} resizeMode="contain" />
-              </View>
-            </Animated.View>
-
-            <Animated.View style={[styles.textContainer, { opacity: textOpacity }]}>
-              <Text style={styles.logoText}>FloAura</Text>
-              <Text style={styles.tagline}>Your Cycle, Your Glow ✨</Text>
-            </Animated.View>
-
-            <View style={[styles.footer, { bottom: (insets.bottom || 24) + 32 }]}>
-              <View style={styles.loadingDots}>
-                <View style={[styles.dot, styles.dot1]} />
-                <View style={[styles.dot, styles.dot2]} />
-                <View style={[styles.dot, styles.dot3]} />
-              </View>
-            </View>
-          </View>
-        </LinearGradient>
+      <Animated.View style={[styles.imageWrap, { opacity: imageOpacity }]}>
+        <Image
+          source={require('../assets/images/icon.png')}
+          style={styles.coverImage}
+          resizeMode="cover"
+        />
+        <View style={styles.overlay} />
       </Animated.View>
+
+      <View style={styles.content} pointerEvents="none">
+        <Animated.View
+          style={[
+            styles.nameContainer,
+            {
+              opacity: nameOpacity,
+              transform: [{ scale: nameScale }],
+            },
+          ]}
+        >
+          <Text style={styles.logoText}>Aurelle</Text>
+        </Animated.View>
+        <Animated.View style={[styles.taglineWrap, { opacity: taglineOpacity }]}>
+          <Text style={styles.tagline}>Your Cycle, Your Glow ✨</Text>
+        </Animated.View>
+      </View>
+
+      <View style={[styles.footer, { bottom: (insets.bottom || 24) + 32 }]}>
+        <View style={styles.loadingDots}>
+          <View style={[styles.dot, styles.dot1]} />
+          <View style={[styles.dot, styles.dot2]} />
+          <View style={[styles.dot, styles.dot3]} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -116,67 +116,54 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FF6B9D',
+    backgroundColor: '#1a0a12',
   },
-  gradientContainer: {
-    flex: 1,
+  imageWrap: {
+    ...StyleSheet.absoluteFillObject,
   },
-  gradient: {
-    flex: 1,
+  coverImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   content: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
   },
-  logoContainer: {
+  nameContainer: {
     alignItems: 'center',
-    marginBottom: 60,
-  },
-  logoCircle: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  logoImage: {
-    width: 160,
-    height: 160,
-  },
-  textContainer: {
-    alignItems: 'center',
+    marginBottom: 16,
   },
   logoText: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: '900' as const,
     color: '#FFFFFF',
-    marginBottom: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 6,
-    letterSpacing: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 12,
+    letterSpacing: 2,
+  },
+  taglineWrap: {
+    alignItems: 'center',
   },
   tagline: {
     fontSize: 20,
     color: 'rgba(255, 255, 255, 0.95)',
     fontWeight: '600' as const,
     textAlign: 'center' as const,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   footer: {
     position: 'absolute' as const,
-    bottom: 80,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   loadingDots: {
@@ -187,15 +174,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
-  dot1: {
-    opacity: 1,
-  },
-  dot2: {
-    opacity: 0.7,
-  },
-  dot3: {
-    opacity: 0.4,
-  },
+  dot1: { opacity: 1 },
+  dot2: { opacity: 0.7 },
+  dot3: { opacity: 0.4 },
 });

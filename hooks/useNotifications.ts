@@ -1,10 +1,6 @@
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
-
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
+import { Alert, Platform } from "react-native";
 
 export interface NotificationCycleData {
   lastPeriodStart: string; // "YYYY-MM-DD"
@@ -30,18 +26,12 @@ interface NotificationItem {
   phase: "period" | "fertile" | "ovulation" | "safe" | "tip";
 }
 
-// ─────────────────────────────────────────────────────────────
-// STORAGE KEYS
-// ─────────────────────────────────────────────────────────────
-
 const KEYS = {
   LAST_SCHEDULED: "@app:lastScheduledAt",
   TIP_INDEX: "@app:tipIndex",
 };
 
-// ─────────────────────────────────────────────────────────────
-// DEFAULT NOTIFICATION SETTINGS
-// ─────────────────────────────────────────────────────────────
+const IOS_MAX_SCHEDULED = 60;
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   periodAlerts: true,
@@ -52,10 +42,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   preferredHour: 8,
   preferredMinute: 0,
 };
-
-// ─────────────────────────────────────────────────────────────
-// DAILY TIPS BANK (phase-aware)
-// ─────────────────────────────────────────────────────────────
 
 const TIPS = {
   period: [
@@ -84,19 +70,9 @@ const TIPS = {
   ],
 };
 
-// ─────────────────────────────────────────────────────────────
-// DATE UTILITIES
-// ─────────────────────────────────────────────────────────────
-
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
-  return result;
-}
-
-function addHours(date: Date, hours: number): Date {
-  const result = new Date(date);
-  result.setHours(result.getHours() + hours);
   return result;
 }
 
@@ -105,12 +81,9 @@ function toYMD(date: Date): string {
 }
 
 function isBetween(date: Date, start: Date, end: Date): boolean {
-  const d = new Date(date);
-  const s = new Date(start);
-  const e = new Date(end);
-  d.setHours(0, 0, 0, 0);
-  s.setHours(0, 0, 0, 0);
-  e.setHours(0, 0, 0, 0);
+  const d = new Date(date); d.setHours(0, 0, 0, 0);
+  const s = new Date(start); s.setHours(0, 0, 0, 0);
+  const e = new Date(end);   e.setHours(0, 0, 0, 0);
   return d.getTime() >= s.getTime() && d.getTime() <= e.getTime();
 }
 
@@ -120,39 +93,19 @@ function setTime(date: Date, hour: number, minute: number): Date {
   return result;
 }
 
-// ─────────────────────────────────────────────────────────────
-// CYCLE CALCULATION
-// ─────────────────────────────────────────────────────────────
-
 function getNextKeyDates(cycleData: NotificationCycleData, totalCycles = 3) {
   const { lastPeriodStart, cycleLength, periodDuration } = cycleData;
   const start = new Date(lastPeriodStart);
   start.setHours(0, 0, 0, 0);
 
-  const keyDates = [];
-
-  for (let i = 0; i < totalCycles; i++) {
-    const cycleStart = addDays(start, i * cycleLength);
-    const periodEnd = addDays(cycleStart, periodDuration - 1);
+  return Array.from({ length: totalCycles }, (_, i) => {
+    const cycleStart   = addDays(start, i * cycleLength);
+    const periodEnd    = addDays(cycleStart, periodDuration - 1);
     const ovulationDay = addDays(cycleStart, cycleLength - 14);
     const fertileStart = addDays(ovulationDay, -5);
-    const fertileEnd = addDays(ovulationDay, -1);
-    const postFertileStart = addDays(ovulationDay, 1);
-    const postFertileEnd = addDays(ovulationDay, 2);
-
-    keyDates.push({
-      cycle: i + 1,
-      periodStart: cycleStart,
-      periodEnd,
-      fertileStart,
-      fertileEnd,
-      ovulationDay,
-      postFertileStart,
-      postFertileEnd,
-    });
-  }
-
-  return keyDates;
+    const fertileEnd   = addDays(ovulationDay, -1);
+    return { cycle: i + 1, cycleStart, periodEnd, fertileStart, fertileEnd, ovulationDay };
+  });
 }
 
 function getPhaseForDate(
@@ -165,12 +118,12 @@ function getPhaseForDate(
   start.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < totalCycles; i++) {
-    const cycleStart = addDays(start, i * cycleLength);
-    const periodEnd = addDays(cycleStart, periodDuration - 1);
+    const cycleStart   = addDays(start, i * cycleLength);
+    const periodEnd    = addDays(cycleStart, periodDuration - 1);
     const ovulationDay = addDays(cycleStart, cycleLength - 14);
     const fertileStart = addDays(ovulationDay, -5);
-    const fertileEnd = addDays(ovulationDay, -1);
-    const nextPeriod = addDays(cycleStart, cycleLength);
+    const fertileEnd   = addDays(ovulationDay, -1);
+    const nextPeriod   = addDays(cycleStart, cycleLength);
 
     if (isBetween(date, cycleStart, periodEnd)) return "period";
     if (isBetween(date, addDays(periodEnd, 1), addDays(fertileStart, -1))) return "safe";
@@ -179,13 +132,8 @@ function getPhaseForDate(
     if (isBetween(date, addDays(ovulationDay, 1), addDays(ovulationDay, 2))) return "fertile";
     if (isBetween(date, addDays(ovulationDay, 3), addDays(nextPeriod, -1))) return "safe";
   }
-
   return "safe";
 }
-
-// ─────────────────────────────────────────────────────────────
-// TIP ROTATION
-// ─────────────────────────────────────────────────────────────
 
 async function getNextTip(phase: "period" | "fertile" | "ovulation" | "safe") {
   const raw = await AsyncStorage.getItem(KEYS.TIP_INDEX);
@@ -196,16 +144,10 @@ async function getNextTip(phase: "period" | "fertile" | "ovulation" | "safe") {
   const tipBank = TIPS[phase];
   const currentIndex = indices[phase] % tipBank.length;
   const tip = tipBank[currentIndex];
-
   indices[phase] = (currentIndex + 1) % tipBank.length;
   await AsyncStorage.setItem(KEYS.TIP_INDEX, JSON.stringify(indices));
-
   return tip;
 }
-
-// ─────────────────────────────────────────────────────────────
-// BUILD NOTIFICATION QUEUE
-// ─────────────────────────────────────────────────────────────
 
 function buildCycleNotifications(
   cycleData: NotificationCycleData,
@@ -213,59 +155,52 @@ function buildCycleNotifications(
 ): NotificationItem[] {
   const { preferredHour, preferredMinute } = settings;
   const queue: NotificationItem[] = [];
-  const keyDates = getNextKeyDates(cycleData, 3);
   const now = new Date();
+  const keyDates = getNextKeyDates(cycleData, 3);
 
   for (const cycle of keyDates) {
     const c = cycle.cycle;
 
     if (settings.periodAlerts) {
-      const twoDaysBefore = addDays(cycle.periodStart, -2);
-      const oneDayBefore = addDays(cycle.periodStart, -1);
-      const endingSoon = addDays(cycle.periodEnd, -1);
-
       queue.push(
         {
           id: `period-2days-cycle${c}`,
           title: "Period Coming Soon 🔴",
           body: "Your period is expected in 2 days. Be prepared 💊",
-          triggerDate: setTime(twoDaysBefore, preferredHour, preferredMinute),
+          triggerDate: setTime(addDays(cycle.cycleStart, -2), preferredHour, preferredMinute),
           phase: "period",
         },
         {
           id: `period-1day-cycle${c}`,
           title: "Period Tomorrow 🔴",
           body: "Your period is expected tomorrow. Stock up on supplies 🧴",
-          triggerDate: setTime(oneDayBefore, preferredHour, preferredMinute),
+          triggerDate: setTime(addDays(cycle.cycleStart, -1), preferredHour, preferredMinute),
           phase: "period",
         },
         {
           id: `period-start-cycle${c}`,
           title: "Period Started 🔴",
           body: "Your period likely started today. Remember to log it 📝",
-          triggerDate: setTime(cycle.periodStart, preferredHour, preferredMinute),
+          triggerDate: setTime(cycle.cycleStart, preferredHour, preferredMinute),
           phase: "period",
         },
         {
           id: `period-ending-cycle${c}`,
           title: "Period Ending Soon 🔴",
           body: "Your period should be ending in a day or two 🌿",
-          triggerDate: setTime(endingSoon, preferredHour, preferredMinute),
+          triggerDate: setTime(addDays(cycle.periodEnd, -1), preferredHour, preferredMinute),
           phase: "period",
         }
       );
     }
 
     if (settings.fertileAlerts) {
-      const fertileOneDayBefore = addDays(cycle.fertileStart, -1);
-      const fertileMidpoint = addDays(cycle.fertileStart, 2);
-
       queue.push(
         {
           id: `fertile-1day-cycle${c}`,
           title: "Fertile Window Tomorrow 🟡",
           body: "Your fertile window opens tomorrow. Plan accordingly 🌱",
-          triggerDate: setTime(fertileOneDayBefore, preferredHour, preferredMinute),
+          triggerDate: setTime(addDays(cycle.fertileStart, -1), preferredHour, preferredMinute),
           phase: "fertile",
         },
         {
@@ -279,21 +214,26 @@ function buildCycleNotifications(
           id: `fertile-mid-cycle${c}`,
           title: "Fertile Window 🟡",
           body: "You have 2 days left in your fertile window",
-          triggerDate: setTime(fertileMidpoint, preferredHour, preferredMinute),
+          triggerDate: setTime(addDays(cycle.fertileStart, 2), preferredHour, preferredMinute),
+          phase: "fertile",
+        },
+        {
+          id: `fertile-post-ovulation-cycle${c}`,
+          title: "Still Fertile 🟡",
+          body: "You are still in a fertile window today — the egg is still viable",
+          triggerDate: setTime(addDays(cycle.ovulationDay, 1), preferredHour, preferredMinute),
           phase: "fertile",
         }
       );
     }
 
     if (settings.ovulationAlerts) {
-      const ovulationOneDayBefore = addDays(cycle.ovulationDay, -1);
-
       queue.push(
         {
           id: `ovulation-1day-cycle${c}`,
           title: "Ovulation Tomorrow 🌸",
           body: "Your ovulation day is tomorrow — peak fertility approaching",
-          triggerDate: setTime(ovulationOneDayBefore, preferredHour, preferredMinute),
+          triggerDate: setTime(addDays(cycle.ovulationDay, -1), preferredHour, preferredMinute),
           phase: "ovulation",
         },
         {
@@ -305,26 +245,19 @@ function buildCycleNotifications(
         }
       );
     }
-
-    if (settings.fertileAlerts) {
-      const postFertileStart = addDays(cycle.ovulationDay, 1);
-      queue.push({
-        id: `fertile-post-ovulation-cycle${c}`,
-        title: "Still Fertile 🟡",
-        body: "You are still in a fertile window today — the egg is still viable",
-        triggerDate: setTime(postFertileStart, preferredHour, preferredMinute),
-        phase: "fertile",
-      });
-    }
   }
 
   return queue.filter((item) => item.triggerDate > now);
 }
 
+// Schedules two tips per day:
+//   Morning  → 30 min after preferredHour:preferredMinute (default 8:30 AM)
+//   Afternoon → fixed at 3:00 PM
+// 7 days × 2 tips = 14 slots, leaving 46 slots for cycle alerts.
 async function buildDailyTips(
   cycleData: NotificationCycleData,
   settings: NotificationSettings,
-  daysAhead = 30
+  daysAhead = 7
 ): Promise<NotificationItem[]> {
   if (!settings.dailyTips) return [];
 
@@ -332,43 +265,78 @@ async function buildDailyTips(
   const queue: NotificationItem[] = [];
   const now = new Date();
 
+  // Morning tip: 30 min after preferred time (default 8:30 AM)
+  const morningMinute = (preferredMinute + 30) % 60;
+  const morningHour   = preferredMinute + 30 >= 60 ? preferredHour + 1 : preferredHour;
+
+  // Afternoon tip: fixed at 3:00 PM
+  const afternoonHour   = 15;
+  const afternoonMinute = 0;
+
   for (let i = 0; i < daysAhead; i++) {
     const baseDate = addDays(now, i);
-    const phase = getPhaseForDate(baseDate, cycleData);
+    const phase    = getPhaseForDate(baseDate, cycleData);
 
-    // First slot: 30 minutes after preferred time on that day
-    const firstSlot = setTime(
-      baseDate,
-      preferredHour,
-      (preferredMinute + 30) % 60
-    );
-
-    // Then every 2 hours after that, staying within the same calendar day
-    for (let slot = 0; slot < 12; slot++) {
-      const trigger = addHours(firstSlot, slot * 2);
-      if (toYMD(trigger) !== toYMD(baseDate)) break;
-
-      const tip = await getNextTip(phase);
-
+    // Morning tip
+    const morningTrigger = setTime(baseDate, morningHour, morningMinute);
+    if (morningTrigger > now) {
+      const morningTip = await getNextTip(phase);
       queue.push({
-        id: `daily-tip-${toYMD(baseDate)}-${slot}`,
-        title: tip.title,
-        body: tip.body,
-        triggerDate: trigger,
+        id: `daily-tip-morning-${toYMD(baseDate)}`,
+        title: morningTip.title,
+        body:  morningTip.body,
+        triggerDate: morningTrigger,
+        phase: "tip",
+      });
+    }
+
+    // Afternoon tip
+    const afternoonTrigger = setTime(baseDate, afternoonHour, afternoonMinute);
+    if (afternoonTrigger > now) {
+      const afternoonTip = await getNextTip(phase);
+      queue.push({
+        id: `daily-tip-afternoon-${toYMD(baseDate)}`,
+        title: afternoonTip.title,
+        body:  afternoonTip.body,
+        triggerDate: afternoonTrigger,
         phase: "tip",
       });
     }
   }
 
-  return queue.filter((item) => item.triggerDate > now);
+  return queue;
 }
 
-// ─────────────────────────────────────────────────────────────
-// MAIN HOOK
-// ─────────────────────────────────────────────────────────────
+async function askUserForNotificationConsent(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Allow notifications?",
+      "Aurelle would like to send you gentle reminders about your cycle and wellness. You can change this anytime in Settings.",
+      [
+        { text: "Not now", style: "cancel", onPress: () => resolve(false) },
+        { text: "Allow",                    onPress: () => resolve(true)  },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) }
+    );
+  });
+}
+
+async function ensurePermission(): Promise<"granted" | "denied"> {
+  const { status } = await Notifications.getPermissionsAsync();
+
+  if (status === "granted") return "granted";
+
+  if (status === "undetermined") {
+    const userConsented = await askUserForNotificationConsent();
+    if (!userConsented) return "denied";
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    return newStatus === "granted" ? "granted" : "denied";
+  }
+
+  return "denied";
+}
 
 export function useNotifications() {
-  // All notifications are always on; no user toggles — use defaults only
   const settings: NotificationSettings = DEFAULT_NOTIFICATION_SETTINGS;
   const settingsLoaded = true;
 
@@ -376,10 +344,15 @@ export function useNotifications() {
     cycleData: NotificationCycleData,
     settingsOverride?: NotificationSettings
   ) {
-    const s = settingsOverride ?? settings;
     if (Platform.OS === "web") return;
 
     try {
+      const permission = await ensurePermission();
+      if (permission !== "granted") {
+        console.log("[Notifications] Permission not granted — skipping schedule.");
+        return;
+      }
+
       if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync("period-tracker", {
           name: "Period & cycle",
@@ -388,31 +361,42 @@ export function useNotifications() {
         });
       }
 
+      const s = settingsOverride ?? settings;
+
       await Notifications.cancelAllScheduledNotificationsAsync();
 
       const cycleQueue = buildCycleNotifications(cycleData, s);
-      const tipsQueue = await buildDailyTips(cycleData, s, 30);
-      const fullQueue = [...cycleQueue, ...tipsQueue];
+      const tipsQueue  = await buildDailyTips(cycleData, s, 7); // 7 days × 2 tips = 14 slots
 
-      for (const item of fullQueue) {
-        await Notifications.scheduleNotificationAsync({
-          identifier: item.id,
-          content: {
-            title: item.title,
-            body: item.body,
-            sound: true,
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: item.triggerDate,
-          },
-        });
+      const sorted = [...cycleQueue, ...tipsQueue]
+        .sort((a, b) => a.triggerDate.getTime() - b.triggerDate.getTime())
+        .slice(0, IOS_MAX_SCHEDULED);
+
+      let scheduled = 0;
+      for (const item of sorted) {
+        try {
+          await Notifications.scheduleNotificationAsync({
+            identifier: item.id,
+            content: {
+              title: item.title,
+              body:  item.body,
+              sound: "default",
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: item.triggerDate,
+            },
+          });
+          scheduled++;
+        } catch (err) {
+          console.warn(`[Notifications] Failed to schedule "${item.id}":`, err);
+        }
       }
 
       await AsyncStorage.setItem(KEYS.LAST_SCHEDULED, new Date().toISOString());
-      console.log(`✅ Scheduled ${fullQueue.length} notifications`);
+      console.log(`[Notifications] ✅ Scheduled ${scheduled} notifications`);
     } catch (error) {
-      console.error("❌ Failed to schedule notifications:", error);
+      console.error("[Notifications] ❌ Failed to schedule notifications:", error);
     }
   }
 
@@ -420,7 +404,7 @@ export function useNotifications() {
     if (Platform.OS === "web") return;
     await Notifications.cancelAllScheduledNotificationsAsync();
     await AsyncStorage.removeItem(KEYS.LAST_SCHEDULED);
-    console.log("🔕 All notifications cancelled");
+    console.log("[Notifications] 🔕 All notifications cancelled");
   }
 
   async function shouldReschedule(): Promise<boolean> {
@@ -436,10 +420,9 @@ export function useNotifications() {
     settingsOverride?: NotificationSettings | null
   ) {
     if (!cycleData || Platform.OS === "web") return;
-    const s = settingsOverride ?? settings;
     const needed = await shouldReschedule();
     if (needed) {
-      await scheduleAllNotifications(cycleData, s);
+      await scheduleAllNotifications(cycleData, settingsOverride ?? settings);
     }
   }
 

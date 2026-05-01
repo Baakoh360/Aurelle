@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import React, { useRef, useCallback, useEffect } from "react";
 import { Animated, Pressable, Platform } from "react-native";
-import { Calendar, Home, MessageCircle, Settings } from "lucide-react-native";
+import { BookOpen, Calendar, Home, MessageCircle, Settings } from "lucide-react-native";
 import Colors from "@/constants/colors";
 
 function AnimatedTabIcon({
@@ -114,23 +114,26 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: Colors.background,
           borderTopWidth: 0,
-          height: 90,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === "ios" ? 24 : 6,
+          height: 100,
+          paddingTop: 10,
+          // Give Android a bit more bottom padding so the tab bar
+          // sits visually higher above the navigation gesture area.
+          paddingBottom: Platform.OS === "ios" ? 20 : 26,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.06,
+          shadowOpacity: 0.08,
           shadowRadius: 12,
           elevation: 12,
         },
         tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          letterSpacing: 0.2,
+          fontSize: 12,
+          fontWeight: "700",
+          letterSpacing: 0.3,
         },
         tabBarItemStyle: {
           paddingTop: 4,
+          minHeight: 44,
         },
         tabBarButton: (props) => (
           <AnimatedTabButton
@@ -161,6 +164,17 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon focused={focused}>
               <Calendar color={color} size={24} strokeWidth={focused ? 2.5 : 2} />
+            </AnimatedTabIcon>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: "H Guide",
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              <BookOpen color={color} size={24} strokeWidth={focused ? 2.5 : 2} />
             </AnimatedTabIcon>
           ),
         }}

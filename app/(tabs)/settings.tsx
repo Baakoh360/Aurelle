@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,10 +9,14 @@ import {
   Modal,
   Platform,
   KeyboardAvoidingView,
+  Animated,
+  Easing,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { useAppStore } from '@/hooks/useAppStore';
 import { useChatStore } from '@/hooks/useChatStore';
 import Colors from '@/constants/colors';
@@ -22,6 +26,86 @@ import { Calendar, Trash2, X, LogOut, Edit3, ChevronRight, Settings } from 'luci
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO, addDays } from '@/utils/dateUtils';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// ─────────────────────────────────────────────────────────────
+// BUBBLE CONFIG
+// ─────────────────────────────────────────────────────────────
+const BUBBLES = [
+  { size: 120, left: -30,  top: 60,   color: 'rgba(255,107,157,0.13)', duration: 7000,  delay: 0    },
+  { size: 80,  left: SCREEN_WIDTH - 60, top: 140, color: 'rgba(157,113,232,0.12)', duration: 9000, delay: 1200 },
+  { size: 55,  left: 40,   top: 220,  color: 'rgba(91,191,221,0.10)',  duration: 8000,  delay: 600  },
+  { size: 95,  left: SCREEN_WIDTH - 80, top: 320, color: 'rgba(255,107,157,0.09)', duration: 10000, delay: 2000 },
+  { size: 40,  left: SCREEN_WIDTH / 2 - 20, top: 180, color: 'rgba(157,113,232,0.10)', duration: 6500, delay: 400 },
+  { size: 65,  left: 20,   top: 400,  color: 'rgba(255,182,193,0.11)', duration: 8500,  delay: 1800 },
+  { size: 35,  left: SCREEN_WIDTH - 55, top: 480, color: 'rgba(91,191,221,0.12)', duration: 7500, delay: 900 },
+];
+
+function FloatingBubble({
+  size, left, top, color, duration, delay,
+}: {
+  size: number; left: number; top: number;
+  color: string; duration: number; delay: number;
+}) {
+  const translateY = useRef(new Animated.Value(0)).current;
+  const opacity    = useRef(new Animated.Value(0)).current;
+  const scale      = useRef(new Animated.Value(0.7)).current;
+
+  useEffect(() => {
+    // Fade + scale in
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1, duration: 1200, delay,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 1, duration: 1200, delay,
+        easing: Easing.out(Easing.back(1.2)),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Continuous float loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateY, {
+          toValue: -18, duration, delay,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0, duration,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        left,
+        top,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        borderWidth: 1,
+        borderColor: color.replace(/[\d.]+\)$/, '0.25)'),
+        opacity,
+        transform: [{ translateY }, { scale }],
+      }}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const router = useRouter();
   const { user, cycleData, saveCycleData, saveUser, logout } = useAppStore();
@@ -35,9 +119,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if (cycleData?.periodStartDate) {
-      const start = parseISO(cycleData.periodStartDate);
-      const days = (cycleData.periodLength ?? 5) - 1;
-      setPeriodStartDate(addDays(start, days)); // hold end date for UI
+      setPeriodStartDate(parseISO(cycleData.periodStartDate));
     }
     if (cycleData?.periodLength != null) {
       setPeriodLength(String(cycleData.periodLength));
@@ -49,11 +131,8 @@ export default function SettingsScreen() {
 
   const [periodStartDate, setPeriodStartDate] = useState<Date>(() => {
     try {
-      if (cycleData?.periodStartDate) {
-        const start = parseISO(cycleData.periodStartDate);
-        return addDays(start, (cycleData.periodLength ?? 5) - 1); // end date for UI
-      }
-    } catch (_) { /* invalid date */ }
+      if (cycleData?.periodStartDate) return parseISO(cycleData.periodStartDate);
+    } catch (_) {}
     return new Date();
   });
   const [periodLength, setPeriodLength] = useState<string>(
@@ -65,30 +144,21 @@ export default function SettingsScreen() {
 
   const handleSavePeriodSettings = () => {
     const periodLengthNum = parseInt(periodLength, 10);
-    const cycleLengthNum = parseInt(cycleLength, 10);
+    const cycleLengthNum  = parseInt(cycleLength,  10);
     if (isNaN(periodLengthNum) || isNaN(cycleLengthNum)) return;
 
-    const clampedPeriodLength = Math.min(10, Math.max(1, periodLengthNum));
-    const clampedCycleLength = Math.min(45, Math.max(21, cycleLengthNum));
-    // periodStartDate state holds end date in UI; convert to start for store
-    const periodEnd = periodStartDate;
-    const periodStart = addDays(periodEnd, -(clampedPeriodLength - 1));
-    const dateStr = format(periodStart, 'yyyy-MM-dd');
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const isFuture = dateStr > todayStr;
-    const safeDateStr = isFuture ? todayStr : dateStr;
+    const clampedPeriodLength = Math.min(10, Math.max(1,  periodLengthNum));
+    const clampedCycleLength  = Math.min(45, Math.max(21, cycleLengthNum));
+    const dateStr    = format(periodStartDate, 'yyyy-MM-dd');
+    const todayStr   = format(new Date(), 'yyyy-MM-dd');
+    const safeDateStr = dateStr > todayStr ? todayStr : dateStr;
 
     const updatedCycleData = {
-      ...(cycleData ?? {
-        periodStartDate: todayStr,
-        periodLength: 5,
-        cycleLength: 28,
-        lastUpdated: todayStr,
-      }),
+      ...(cycleData ?? { periodStartDate: todayStr, periodLength: 5, cycleLength: 28, lastUpdated: todayStr }),
       periodStartDate: safeDateStr,
       periodLength: clampedPeriodLength,
-      cycleLength: clampedCycleLength,
-      lastUpdated: todayStr,
+      cycleLength:  clampedCycleLength,
+      lastUpdated:  todayStr,
     };
 
     saveCycleData(updatedCycleData);
@@ -97,11 +167,9 @@ export default function SettingsScreen() {
     setPeriodModalVisible(false);
     setShowDatePicker(false);
   };
-  
-  const handleClearChatHistory = () => {
-    clearMessages();
-  };
-  
+
+  const handleClearChatHistory = () => clearMessages();
+
   const handleLogout = async () => {
     clearMessages();
     await logout();
@@ -120,33 +188,28 @@ export default function SettingsScreen() {
       setNameEditModalVisible(false);
     }
   };
-  
+
   const handleQuickEditPeriodDate = () => {
     if (cycleData?.periodStartDate) {
       try {
         const start = parseISO(cycleData.periodStartDate);
-        setPeriodStartDate(addDays(start, (cycleData.periodLength ?? 5) - 1)); // show end date
+        setPeriodStartDate(addDays(start, (cycleData.periodLength ?? 5) - 1));
       } catch (_) {
         setPeriodStartDate(new Date());
       }
       setQuickEditModalVisible(true);
     }
   };
-  
+
   const handleSaveQuickEdit = () => {
-    // periodStartDate state holds end date; convert to start for store
-    const periodEnd = periodStartDate;
-    const startDate = addDays(periodEnd, -((cycleData?.periodLength ?? 5) - 1));
-    const dateStr = format(startDate, 'yyyy-MM-dd');
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const periodEnd  = periodStartDate;
+    const startDate  = addDays(periodEnd, -((cycleData?.periodLength ?? 5) - 1));
+    const dateStr    = format(startDate, 'yyyy-MM-dd');
+    const todayStr   = format(new Date(), 'yyyy-MM-dd');
     const safeDateStr = dateStr > todayStr ? todayStr : dateStr;
 
     const updatedCycleData = {
-      ...(cycleData ?? {
-        periodLength: 5,
-        cycleLength: 28,
-        lastUpdated: todayStr,
-      }),
+      ...(cycleData ?? { periodLength: 5, cycleLength: 28, lastUpdated: todayStr }),
       periodStartDate: safeDateStr,
       lastUpdated: todayStr,
     };
@@ -154,33 +217,45 @@ export default function SettingsScreen() {
     saveCycleData(updatedCycleData);
     setQuickEditModalVisible(false);
   };
-  
+
   const onDateChange = (event: any, selectedDate?: Date) => {
     const isClosing = event.type === 'dismissed';
     setShowDatePicker(Platform.OS === 'ios' && !isClosing);
-    if (selectedDate && !isClosing) {
-      setPeriodStartDate(selectedDate);
-    }
+    if (selectedDate && !isClosing) setPeriodStartDate(selectedDate);
   };
-  
-  const insets = useSafeAreaInsets();
+
+  const insets      = useSafeAreaInsets();
   const headerPaddingTop = insets.top + spacing.sm;
-  const contentBottom = insets.bottom + 16;
+  const contentBottom    = insets.bottom + 28;
+  const appVersion  = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
     <View style={styles.container}>
+      {/* ── Background gradient ── */}
       <LinearGradient
         colors={[Colors.lightBackground, '#FFFFFF', Colors.lightBackground]}
         locations={[0, 0.35, 1]}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
+
+      {/* ── Floating bubbles (behind everything) ── */}
+      {BUBBLES.map((b, i) => (
+        <FloatingBubble key={i} {...b} />
+      ))}
+
+      {/* ── Header ── */}
       <LinearGradient
         colors={['#FF6B9D', '#E06BA8', '#C96BB8', '#9D71E8']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.header, { paddingTop: headerPaddingTop }]}
       >
+        {/* Small decorative bubbles inside header */}
+        <View style={styles.headerBubble1} pointerEvents="none" />
+        <View style={styles.headerBubble2} pointerEvents="none" />
+        <View style={styles.headerBubble3} pointerEvents="none" />
+
         <View style={styles.headerInner}>
           <View style={styles.headerIconPill}>
             <Settings size={22} color="#FFFFFF" strokeWidth={2.5} />
@@ -192,6 +267,7 @@ export default function SettingsScreen() {
         </View>
       </LinearGradient>
 
+      {/* ── Content ── */}
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={[styles.contentContainer, { paddingBottom: contentBottom }]}
@@ -200,11 +276,7 @@ export default function SettingsScreen() {
         overScrollMode="never"
       >
         {/* Profile */}
-        <TouchableOpacity
-          style={styles.profileCard}
-          onPress={openNameEditModal}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={styles.profileCard} onPress={openNameEditModal} activeOpacity={0.85}>
           <LinearGradient
             colors={[Colors.primary, Colors.secondary]}
             start={{ x: 0, y: 0 }}
@@ -220,6 +292,8 @@ export default function SettingsScreen() {
               <Edit3 size={18} color={Colors.primary} strokeWidth={2} style={styles.profileEditIcon} />
             </View>
           </View>
+          {/* Tiny accent bubble on profile card */}
+          <View style={styles.profileCardBubble} pointerEvents="none" />
         </TouchableOpacity>
 
         {/* Cycle */}
@@ -232,7 +306,9 @@ export default function SettingsScreen() {
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowLabel}>Last period ended</Text>
-                <Text style={styles.rowValue}>{format(addDays(parseISO(cycleData.periodStartDate), (cycleData.periodLength ?? 5) - 1), 'EEE, MMM d, yyyy')}</Text>
+                <Text style={styles.rowValue}>
+                  {format(addDays(parseISO(cycleData.periodStartDate), (cycleData.periodLength ?? 5) - 1), 'EEE, MMM d, yyyy')}
+                </Text>
               </View>
               <ChevronRight size={20} color={Colors.lightText} strokeWidth={2.5} />
             </TouchableOpacity>
@@ -245,7 +321,7 @@ export default function SettingsScreen() {
                   try { setPeriodStartDate(parseISO(cycleData.periodStartDate)); } catch (_) { setPeriodStartDate(new Date()); }
                 }
                 if (cycleData.periodLength != null) setPeriodLength(String(cycleData.periodLength));
-                if (cycleData.cycleLength != null) setCycleLength(String(cycleData.cycleLength));
+                if (cycleData.cycleLength  != null) setCycleLength(String(cycleData.cycleLength));
               }
               setPeriodModalVisible(true);
             }}
@@ -293,32 +369,34 @@ export default function SettingsScreen() {
 
         <View style={styles.footer}>
           <View style={styles.footerDivider} />
-          <Text style={styles.footerVersion}>FloAura v2.0.0</Text>
+          <Text style={styles.footerAppName}>Aurelle</Text>
+          <Text style={styles.footerVersion}>Version {appVersion}</Text>
           <Text style={styles.footerPrivacy}>Your data stays on your device</Text>
           <Text style={styles.footerByline}>By Nana Baako Tech Studios</Text>
         </View>
       </ScrollView>
-      
-      {/* Period Settings Modal */}
+
+      {/* ── Period Settings Modal ── */}
       <Modal
         visible={periodModalVisible}
         animationType="slide"
         transparent
-        onRequestClose={() => {
-          setPeriodModalVisible(false);
-          setShowDatePicker(false);
-        }}
+        onRequestClose={() => { setPeriodModalVisible(false); setShowDatePicker(false); }}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+        >
           <View style={[styles.modalContent, { paddingBottom: insets.bottom || spacing.xl }]}>
             <View style={styles.modalHandle} />
+            {/* Bubble accents inside modal */}
+            <View style={styles.modalBubble1} pointerEvents="none" />
+            <View style={styles.modalBubble2} pointerEvents="none" />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Period & Cycle Settings</Text>
               <TouchableOpacity
-                onPress={() => {
-                  setPeriodModalVisible(false);
-                  setShowDatePicker(false);
-                }}
+                onPress={() => { setPeriodModalVisible(false); setShowDatePicker(false); }}
                 style={styles.closeButton}
               >
                 <LinearGradient colors={[Colors.primary, Colors.secondary]} style={styles.closeButtonGradient}>
@@ -326,17 +404,16 @@ export default function SettingsScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Last Period End Date</Text>
-                <TouchableOpacity 
-                  style={styles.dateInput}
-                  onPress={() => setShowDatePicker(true)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.dateText}>
-                    {format(periodStartDate, 'MMMM d, yyyy')}
-                  </Text>
+                <Text style={styles.formLabel}>Last Period Start Date</Text>
+                <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)} activeOpacity={0.8}>
+                  <Text style={styles.dateText}>{format(periodStartDate, 'MMMM d, yyyy')}</Text>
                   <Calendar size={20} color={Colors.primary} style={styles.dateInputIcon} />
                 </TouchableOpacity>
               </View>
@@ -350,7 +427,6 @@ export default function SettingsScreen() {
                   maxLength={2}
                 />
               </View>
-              
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Cycle Length (days)</Text>
                 <TextInput
@@ -361,7 +437,6 @@ export default function SettingsScreen() {
                   maxLength={2}
                 />
               </View>
-              
               <GradientButton
                 title="Save Changes"
                 onPress={handleSavePeriodSettings}
@@ -370,10 +445,10 @@ export default function SettingsScreen() {
               />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* Edit name modal — KeyboardAvoidingView so keyboard doesn't cover content on iOS */}
+      {/* ── Edit Name Modal ── */}
       <Modal
         visible={nameEditModalVisible}
         animationType="slide"
@@ -382,11 +457,13 @@ export default function SettingsScreen() {
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
         >
           <View style={[styles.modalContent, { paddingBottom: insets.bottom || spacing.xl }]}>
             <View style={styles.modalHandle} />
+            <View style={styles.modalBubble1} pointerEvents="none" />
+            <View style={styles.modalBubble2} pointerEvents="none" />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit name</Text>
               <TouchableOpacity onPress={() => setNameEditModalVisible(false)} style={styles.closeButton}>
@@ -410,17 +487,13 @@ export default function SettingsScreen() {
                   selectionColor={Colors.primary}
                 />
               </View>
-              <GradientButton
-                title="Save"
-                onPress={handleSaveName}
-                style={styles.saveButton}
-              />
+              <GradientButton title="Save" onPress={handleSaveName} style={styles.saveButton} />
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-      
-      {/* Edit Last Period – calendar on same popup, then Save */}
+
+      {/* ── Quick Edit Last Period Modal ── */}
       <Modal
         visible={quickEditModalVisible}
         animationType="slide"
@@ -430,6 +503,8 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingBottom: insets.bottom || spacing.xl }]}>
             <View style={styles.modalHandle} />
+            <View style={styles.modalBubble1} pointerEvents="none" />
+            <View style={styles.modalBubble2} pointerEvents="none" />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Last Period End Date</Text>
               <TouchableOpacity onPress={() => setQuickEditModalVisible(false)} style={styles.closeButton}>
@@ -444,6 +519,7 @@ export default function SettingsScreen() {
                   value={periodStartDate}
                   mode="date"
                   display={Platform.OS === 'ios' ? 'spinner' : 'calendar'}
+                  themeVariant={Platform.OS === 'ios' ? 'light' : undefined}
                   onChange={onDateChange}
                   maximumDate={new Date()}
                 />
@@ -458,8 +534,8 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-      
-      {/* Date Picker only for full Period & Cycle modal (when you tap the date there) */}
+
+      {/* Date picker for full Period & Cycle modal */}
       {showDatePicker && periodModalVisible && (
         <DateTimePicker
           value={periodStartDate}
@@ -478,13 +554,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.lightBackground,
   },
+
+  // ── Header ──
   header: {
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.xl,
+    overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 16 },
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 16 },
       android: { elevation: 8 },
     }),
+  },
+  // Decorative static bubbles inside header
+  headerBubble1: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    top: -20,
+    right: 30,
+  },
+  headerBubble2: {
+    position: 'absolute',
+    width: 55,
+    height: 55,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    top: 10,
+    right: 100,
+  },
+  headerBubble3: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    bottom: 8,
+    left: 16,
   },
   headerInner: {
     flexDirection: 'row',
@@ -499,9 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTextWrap: {
-    flex: 1,
-  },
+  headerTextWrap: { flex: 1 },
   headerTitle: {
     fontSize: 26,
     fontWeight: '800',
@@ -515,13 +620,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
     letterSpacing: 0.2,
   },
-  scrollContainer: {
-    flex: 1,
-  },
+
+  // ── Scroll ──
+  scrollContainer: { flex: 1 },
   contentContainer: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
+    ...Platform.select({
+      ios:     { paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl },
+      android: { paddingHorizontal: spacing.xxl, paddingTop: spacing.xxl },
+    }),
   },
+
+  // ── Profile card ──
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -529,12 +640,27 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.lg,
     marginBottom: spacing.xl,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios:     { padding: spacing.xl, marginBottom: spacing.xxl },
+      android: { padding: spacing.xl, marginBottom: spacing.xxl },
+    }),
     borderWidth: 1,
     borderColor: Colors.primary + '18',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16, shadowRadius: 18 },
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16, shadowRadius: 18 },
       android: { elevation: 4 },
     }),
+  },
+  // Accent bubble on profile card (top-right corner)
+  profileCardBubble: {
+    position: 'absolute',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: Colors.primary + '10',
+    top: -20,
+    right: -20,
   },
   avatarWrap: {
     width: 60,
@@ -550,9 +676,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
   },
-  profileInfo: {
-    flex: 1,
-  },
+  profileInfo: { flex: 1 },
   profileLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -571,9 +695,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
     letterSpacing: 0.2,
   },
-  profileEditIcon: {
-    marginLeft: spacing.sm,
-  },
+  profileEditIcon: { marginLeft: spacing.sm },
+
+  // ── Cycle block ──
   block: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.xl,
@@ -582,7 +706,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primary + '12',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 14 },
+      ios:     { marginBottom: spacing.xxl },
+      android: { marginBottom: spacing.xxl },
+    }),
+    ...Platform.select({
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 14 },
       android: { elevation: 3 },
     }),
   },
@@ -595,6 +723,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.base,
     paddingBottom: spacing.sm,
+    ...Platform.select({
+      ios:     { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.base },
+      android: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.base },
+    }),
   },
   row: {
     flexDirection: 'row',
@@ -602,12 +734,14 @@ const styles = StyleSheet.create({
     minHeight: 56,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
+    ...Platform.select({
+      ios:     { minHeight: 60, paddingVertical: spacing.base, paddingHorizontal: spacing.xl },
+      android: { minHeight: 60, paddingVertical: spacing.base, paddingHorizontal: spacing.xl },
+    }),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
-  rowFirst: {
-    borderTopWidth: 0,
-  },
+  rowFirst: { borderTopWidth: 0 },
   rowIconWrap: {
     width: 42,
     height: 42,
@@ -633,9 +767,8 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     marginTop: 2,
   },
-  rowChevron: {
-    marginLeft: spacing.xs,
-  },
+
+  // ── Data block ──
   dataBlock: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.xl,
@@ -645,7 +778,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary + '12',
     paddingBottom: spacing.base,
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 14 },
+      ios:     { marginBottom: spacing.xxl, paddingBottom: spacing.lg },
+      android: { marginBottom: spacing.xxl, paddingBottom: spacing.lg },
+    }),
+    ...Platform.select({
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 14 },
       android: { elevation: 3 },
     }),
   },
@@ -657,6 +794,10 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: spacing.base,
     marginTop: -4,
+    ...Platform.select({
+      ios:     { paddingHorizontal: spacing.xl, paddingBottom: spacing.lg },
+      android: { paddingHorizontal: spacing.xl, paddingBottom: spacing.lg },
+    }),
   },
   dataRow: {
     flexDirection: 'row',
@@ -664,6 +805,10 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
+    ...Platform.select({
+      ios:     { minHeight: 68, paddingVertical: spacing.base, paddingHorizontal: spacing.xl },
+      android: { minHeight: 68, paddingVertical: spacing.base, paddingHorizontal: spacing.xl },
+    }),
   },
   dataRowIconWrap: {
     width: 44,
@@ -674,10 +819,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.base,
   },
-  dataRowContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
+  dataRowContent: { flex: 1, justifyContent: 'center' },
   dataRowLabel: {
     fontSize: 16,
     fontWeight: '700',
@@ -695,6 +837,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error + '20',
     marginHorizontal: spacing.lg,
     marginVertical: spacing.sm,
+    ...Platform.select({
+      ios:     { marginVertical: spacing.base },
+      android: { marginVertical: spacing.base },
+    }),
   },
   dangerRow: {
     flexDirection: 'row',
@@ -708,6 +854,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: Colors.error + '18',
+    ...Platform.select({
+      ios:     { minHeight: 68, paddingVertical: spacing.base, paddingHorizontal: spacing.xl, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
+      android: { minHeight: 68, paddingVertical: spacing.base, paddingHorizontal: spacing.xl, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
+    }),
   },
   dangerRowIconWrap: {
     width: 44,
@@ -718,10 +868,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.base,
   },
-  dangerRowContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
+  dangerRowContent: { flex: 1, justifyContent: 'center' },
   dangerRowLabel: {
     fontSize: 16,
     fontWeight: '700',
@@ -735,11 +882,17 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     marginTop: 2,
   },
+
+  // ── Footer ──
   footer: {
     marginTop: spacing.lg,
     marginBottom: 0,
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
+    ...Platform.select({
+      ios:     { marginTop: spacing.xxl, paddingHorizontal: spacing.xxl },
+      android: { marginTop: spacing.xxl, paddingHorizontal: spacing.xxl },
+    }),
   },
   footerDivider: {
     width: 48,
@@ -748,26 +901,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary + '30',
     marginBottom: spacing.sm,
   },
-  footerVersion: {
-    fontSize: 13,
-    color: Colors.lightText,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  footerPrivacy: {
-    fontSize: 12,
-    color: Colors.lightText,
-    textAlign: 'center',
-    opacity: 0.9,
-    marginBottom: 4,
-  },
-  footerByline: {
-    fontSize: 12,
-    color: Colors.lightText,
-    fontWeight: '600',
-    textAlign: 'center',
-    opacity: 0.9,
-  },
+  footerAppName:  { fontSize: 13, color: Colors.lightText, fontWeight: '700', marginBottom: 2 },
+  footerVersion:  { fontSize: 12, color: Colors.lightText, fontWeight: '600', marginBottom: 4, opacity: 0.9 },
+  footerPrivacy:  { fontSize: 12, color: Colors.lightText, textAlign: 'center', opacity: 0.9, marginBottom: 4 },
+  footerByline:   { fontSize: 12, color: Colors.lightText, fontWeight: '600', textAlign: 'center', opacity: 0.9 },
+
+  // ── Modals ──
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -780,9 +919,28 @@ const styles = StyleSheet.create({
     maxHeight: '88%',
     overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.18, shadowRadius: 20 },
+      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.18, shadowRadius: 20 },
       android: { elevation: 20 },
     }),
+  },
+  // Subtle static accent bubbles inside modals
+  modalBubble1: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.primary + '0C',
+    top: -10,
+    right: 20,
+  },
+  modalBubble2: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.secondary + '0A',
+    top: 30,
+    right: 80,
   },
   modalHandle: {
     width: 40,
@@ -812,7 +970,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
     ...Platform.select({
-      ios: { shadowColor: Colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6 },
+      ios:     { shadowColor: Colors.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6 },
       android: { elevation: 4 },
     }),
   },
@@ -826,9 +984,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     paddingTop: spacing.lg,
   },
-  formGroup: {
-    marginBottom: spacing.lg,
-  },
+  formGroup:   { marginBottom: spacing.lg },
   formLabel: {
     fontSize: 14,
     fontWeight: '700',
@@ -853,10 +1009,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  dateInputIcon: {
-    opacity: 0.8,
-    marginLeft: spacing.sm,
-  },
+  dateInputIcon: { opacity: 0.8, marginLeft: spacing.sm },
   calendarWrap: {
     alignItems: 'center',
     marginBottom: spacing.lg,

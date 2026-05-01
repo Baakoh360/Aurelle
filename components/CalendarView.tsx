@@ -5,14 +5,23 @@ import { format, addMonths, parseISO } from '@/utils/dateUtils';
 import { useAppStore } from '@/hooks/useAppStore';
 import { CalendarDay } from '@/types';
 import Colors from '@/constants/colors';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react-native';
 
-const CALENDAR_COLORS = {
-  period: '#FF85A2',
-  fertile: '#CE93D8',
-  ovulation: '#64B5F6',
-  safe: '#81C784',
-} as const;
+// Slightly toned down on Android so calendar matches iOS perceived brightness
+const CALENDAR_COLORS = Platform.select({
+  android: {
+    period: '#F06090',
+    fertile: '#7AB33D',
+    ovulation: '#F0A840',
+    safe: '#42B4E5',
+  },
+  default: {
+    period: '#FF6B9D',
+    fertile: '#8BC34A',
+    ovulation: '#FFB74D',
+    safe: '#4FC3F7',
+  },
+}) as { period: string; fertile: string; ovulation: string; safe: string };
 
 const TODAY_RING_GOLD = '#FFD54F';
 
@@ -96,40 +105,39 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
   return (
-    <LinearGradient
-      colors={['#FFFFFF', '#FFF8FC']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
-          <LinearGradient
-            colors={['#FF6B9D', '#9D71E8']}
-            style={styles.navButtonGradient}
-          >
-            <ChevronLeft size={20} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-        <Text style={styles.monthTitle}>
-          {format(currentMonth, 'MMMM yyyy')}
-        </Text>
-        <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
-          <LinearGradient
-            colors={['#FF6B9D', '#9D71E8']}
-            style={styles.navButtonGradient}
-          >
-            <ChevronRight size={20} color="#FFFFFF" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.weekDaysContainer}>
-        {weekDays.map(day => (
-          <View key={day} style={styles.weekDayContainer}>
-            <Text style={styles.weekDay}>{day}</Text>
+    <View style={styles.container}>
+      {/* Header: wide gradient bar, month in white, calendar icon, gray nav circles */}
+      <LinearGradient
+        colors={['#FF6B9D', '#D873C9', '#9D71E8', '#7C9EED']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.headerBar}
+      >
+        <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButtonCircle} activeOpacity={0.8}>
+          <View style={styles.navButtonInner}>
+            <ChevronLeft size={22} color="#666" strokeWidth={2.5} />
           </View>
-        ))}
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <CalendarIcon size={20} color="rgba(255,255,255,0.95)" strokeWidth={2} style={styles.headerCalendarIcon} />
+          <Text style={styles.monthTitle}>{format(currentMonth, 'MMMM yyyy')}</Text>
+        </View>
+        <TouchableOpacity onPress={goToNextMonth} style={styles.navButtonCircle} activeOpacity={0.8}>
+          <View style={styles.navButtonInner}>
+            <ChevronRight size={22} color="#666" strokeWidth={2.5} />
+          </View>
+        </TouchableOpacity>
+      </LinearGradient>
+      
+      <View style={styles.weekDaysRow}>
+        {weekDays.map((day, index) => {
+          const isWeekend = index === 0 || index === 6;
+          return (
+            <View key={day} style={styles.weekDayContainer}>
+              <Text style={[styles.weekDay, isWeekend && styles.weekDayWeekend]}>{day}</Text>
+            </View>
+          );
+        })}
       </View>
       
       <ScrollView style={styles.daysContainer} showsVerticalScrollIndicator={false}>
@@ -146,21 +154,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
             const dayContent = (
               <>
                 {isColored ? (
-                  <LinearGradient
-                    colors={[`${dayColor}E0`, `${dayColor}B8`]}
-                    style={styles.dayBackground}
-                  >
-                    <Text style={[
-                      styles.dayText,
-                      day.isToday && styles.todayText,
-                      isColored && styles.coloredDayText
-                    ]}>
+                  <View style={[styles.dayCircle, { backgroundColor: dayColor }]}>
+                    <LinearGradient
+                      colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0.08)', 'transparent']}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
+                      style={styles.dayCircleGloss}
+                    />
+                    <Text style={[styles.dayText, day.isToday && styles.todayText]}>
                       {parseISO(day.date).getDate()}
                     </Text>
-                  </LinearGradient>
+                  </View>
                 ) : (
-                  <View style={styles.dayBackground}>
-                    <Text style={[styles.dayText, day.isToday && styles.todayText]}>
+                  <View style={[styles.dayCircle, styles.dayCircleUncolored]}>
+                    <Text style={[styles.dayText, styles.dayTextUncolored]}>
                       {parseISO(day.date).getDate()}
                     </Text>
                   </View>
@@ -215,51 +222,69 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
           </View>
         </View>
       </LinearGradient>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     borderRadius: 28,
-    padding: 24,
+    padding: 20,
     margin: 16,
+    backgroundColor: '#FDF2F8',
     shadowColor: '#FF6B9D',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 12,
   },
-  header: {
+  headerBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  navButton: {
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 20,
-    overflow: 'hidden',
+    marginBottom: 18,
   },
-  navButtonGradient: {
-    width: 44,
-    height: 44,
+  navButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF6B9D',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4 },
+      android: { elevation: 3 },
+    }),
+  },
+  navButtonInner: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  headerCalendarIcon: {
+    marginRight: 8,
   },
   monthTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: Colors.text,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
-  weekDaysContainer: {
+  weekDaysRow: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 14,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
   weekDayContainer: {
     flex: 1,
@@ -268,21 +293,25 @@ const styles = StyleSheet.create({
   weekDay: {
     fontSize: 13,
     fontWeight: '600',
-    color: Colors.lightText,
+    color: '#888',
+  },
+  weekDayWeekend: {
+    color: '#E91E63',
   },
   daysContainer: {
-    maxHeight: 320,
+    maxHeight: 360,
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   day: {
-    width: '14.28%',
+    width: '13.2%',
     aspectRatio: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 4,
+    marginHorizontal: '0.4%',
+    marginBottom: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dayToday: {
     overflow: 'visible',
@@ -293,29 +322,48 @@ const styles = StyleSheet.create({
     margin: -8,
     padding: 8,
   },
-  dayBackground: {
-    flex: 1,
+  dayCircle: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 999,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 18,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  dayCircleGloss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 999,
+    opacity: 1,
+  },
+  dayCircleUncolored: {
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  dayTextUncolored: {
+    color: Colors.text,
+    textShadowColor: 'transparent',
   },
   emptyDay: {
-    width: '14.28%',
+    width: '13.2%',
     aspectRatio: 1,
-    marginBottom: 4,
+    marginHorizontal: '0.4%',
+    marginBottom: 10,
   },
   dayText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  coloredDayText: {
-    color: Colors.text,
+    fontSize: 16,
     fontWeight: '800',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   todayText: {
     fontWeight: '800',
-    color: Colors.primary,
+    color: '#FFFFFF',
   },
   todayRingWrapper: {
     flex: 1,

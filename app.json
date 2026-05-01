@@ -1,9 +1,9 @@
 {
   "expo": {
     "sdkVersion": "54.0.0",
-    "name": "FloAura",
+    "name": "Aurelle",
     "slug": "floaura",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -12,23 +12,33 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFF5F9"
+      "backgroundColor": "#1a0a12"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.floaura"
+      "bundleIdentifier": "app.prince.floaura",
+      "buildNumber": "3",
+      "splash": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1a0a12"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFF5F9"
       },
-      "package": "app.rork.floaura",
+      "package": "com.aurelle.tracker",
+      "versionCode": 7,
       "permissions": [
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.REQUEST_INSTALL_PACKAGES"
-      ]
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ],
+      "splash": {
+        "image": "./assets/images/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#1a0a12"
+      }
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
